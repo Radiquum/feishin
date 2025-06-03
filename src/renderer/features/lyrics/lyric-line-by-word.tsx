@@ -4,15 +4,13 @@ import { ComponentPropsWithoutRef, ReactNode } from 'react';
 import styled from 'styled-components';
 
 import { TextTitle } from '/@/renderer/components/text-title';
+import { SynchronizedLyricsKaraokeTokenObject } from '/@/shared/types/domain-types';
 interface LyricLineProps extends ComponentPropsWithoutRef<'div'> {
     alignment: 'center' | 'left' | 'right';
     fontSize: number;
+    handleSeek: (timestamp: number) => void;
     id: string;
-    words: {
-        index: number;
-        timestamp: number;
-        word: string;
-    }[];
+    tokens: SynchronizedLyricsKaraokeTokenObject[];
 }
 
 // const StyledText = styled(TextTitle)<TitleProps & { $alignment: string; $fontSize: number }>`
@@ -117,20 +115,29 @@ const StyledText = styled(TextTitle)<TitleProps>`
     }
 `;
 
-export const LyricLineByWord = ({ alignment, fontSize, id, words, ...props }: LyricLineProps) => {
+export const LyricLineByWord = ({
+    alignment,
+    fontSize,
+    handleSeek,
+    id,
+    tokens,
+    ...props
+}: LyricLineProps) => {
     return (
         <StyledSpan
             $alignment={alignment}
             $fontSize={fontSize}
             id={id}
         >
-            {words.map((word) => {
+            {tokens.map((token) => {
                 return (
                     <StyledText
-                        id={`${id}-word-${word.index}`}
-                        key={`${id}-word-${word.index}`}
+                        id={`${id}-token-${token.index}`}
+                        key={`${id}-token-${token.index}`}
+                        onClick={() => handleSeek(token.timestamp / 1000)}
+                        {...props}
                     >
-                        {word.word}
+                        {token.text}
                     </StyledText>
                 );
             })}

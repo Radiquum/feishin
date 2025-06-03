@@ -1153,6 +1153,18 @@ export type SearchSongsQuery = {
 
 export type SynchronizedLyricsArray = Array<[number, string]>;
 
+export type SynchronizedLyricsKaraokeLineArray = Array<SynchronizedLyricsKaraokeLineObject>;
+export type SynchronizedLyricsKaraokeLineObject = {
+    index: number; // line index
+    timestamp: number; // line/first word timestamp
+    tokens: SynchronizedLyricsKaraokeTokenObject[];
+};
+export type SynchronizedLyricsKaraokeTokenObject = {
+    index: number; // word index
+    text: string; // word
+    timestamp: number; // word timestamp
+};
+
 export type TopSongListArgs = BaseEndpointArgs & { query: TopSongListQuery };
 
 export type TopSongListQuery = {
