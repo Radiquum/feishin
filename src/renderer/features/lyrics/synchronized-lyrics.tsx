@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import styled from 'styled-components';
 
 import { LyricLine } from '/@/renderer/features/lyrics/lyric-line';
+import { LyricLineByWord } from '/@/renderer/features/lyrics/lyric-line-by-word';
 import { useScrobble } from '/@/renderer/features/player/hooks/use-scrobble';
 import { PlayersRef } from '/@/renderer/features/player/ref/players-ref';
 import {
@@ -97,15 +98,28 @@ export const SynchronizedLyrics = ({
 
     // A reference to the timeout handler
     const lyricTimer = useRef<null | ReturnType<typeof setTimeout>>(null);
+    const lyricInlineTimer = useRef<null | ReturnType<typeof setTimeout>>(null);
 
     // A reference to the lyrics. This is necessary for the
     // timers, which are not part of react necessarily, to always
     // have the most updated values
     const lyricRef = useRef<null | SynchronizedLyricsArray>(null);
+    const lyricInlineRef = useRef<
+        | null
+        | {
+              index: number;
+              words: {
+                  index: number;
+                  timestamp: number;
+                  word: string;
+              }[];
+          }[]
+    >(null);
 
     // A constantly increasing value, used to tell timers that may be out of date
     // whether to proceed or stop
     const timerEpoch = useRef(0);
+    const timerEpoch2 = useRef(0);
 
     const delayMsRef = useRef(settings.delayMs);
     const followRef = useRef(settings.follow);
@@ -155,6 +169,8 @@ export const SynchronizedLyrics = ({
             const start = performance.now();
             let nextEpoch: number;
 
+            console.log('LineStart');
+
             if (epoch === undefined) {
                 timerEpoch.current = (timerEpoch.current + 1) % 10000;
                 nextEpoch = timerEpoch.current;
@@ -164,6 +180,8 @@ export const SynchronizedLyrics = ({
                 nextEpoch = epoch;
             }
 
+            console.log('LineEpoch');
+
             let index: number;
 
             if (targetIndex === undefined) {
@@ -172,29 +190,42 @@ export const SynchronizedLyrics = ({
                 index = targetIndex;
             }
 
+            console.log('LineIndex');
+            console.log(targetIndex);
+            console.log(getCurrentLyric(timeInMs));
+
             // Directly modify the dom instead of using react to prevent rerender
             document
                 .querySelectorAll('.synchronized-lyrics .active')
                 .forEach((node) => node.classList.remove('active'));
 
+            console.log('lyricRef.current', lyricRef.current);
+            console.log('lyricInlineRef.current', lyricInlineRef.current);
             if (index === -1) {
+                console.log('LINE INDEX == -1');
                 lyricRef.current = null;
                 return;
             }
 
+            console.log('LINE INDEX', index);
             const doc = document.getElementById(
                 'sychronized-lyrics-scroll-container',
             ) as HTMLElement;
-            const currentLyric = document.querySelector(`#lyric-${index}`) as HTMLElement;
+            const currentLyric = document.getElementById(`lyric-${index}`) as HTMLElement;
+            console.log('currentLyric', currentLyric);
 
             const offsetTop = currentLyric?.offsetTop - doc?.clientHeight / 2 || 0;
 
             if (currentLyric === null) {
+                console.log('LINE currentLyric == NULL');
                 lyricRef.current = null;
                 return;
             }
 
-            currentLyric.classList.add('active');
+            console.log('LineActive');
+
+            setCurrentWord(`${index}`, timeInMs);
+            // currentLyric.classList.add('active');
 
             if (followRef.current) {
                 doc?.scroll({ behavior: 'smooth', top: offsetTop });
@@ -216,6 +247,141 @@ export const SynchronizedLyrics = ({
         [],
     );
 
+    const getCurrentWord = (lineId: string, timeInMs: number) => {
+        if (lyricInlineRef.current) {
+            const activeLyrics = lyricInlineRef.current[Number(lineId)];
+
+            for (let idx = 0; idx < activeLyrics.words.length; idx += 1) {
+                if (timeInMs <= activeLyrics.words[idx].timestamp) {
+                    return idx === 0 ? idx : idx - 1;
+                }
+            }
+
+            return activeLyrics.words.length - 1;
+        }
+
+        return -1;
+    };
+
+    const setCurrentWord = useCallback(
+        (lineId: string, timeInMs: number, epoch?: number, targetIndex?: number) => {
+            const start = performance.now();
+
+            console.log('start');
+
+            let nextEpoch: number;
+            if (epoch === undefined) {
+                timerEpoch2.current = (timerEpoch2.current + 1) % 10000;
+                nextEpoch = timerEpoch2.current;
+            } else if (epoch !== timerEpoch2.current) {
+                return;
+            } else {
+                nextEpoch = epoch;
+            }
+
+            console.log('epoch');
+
+            let index: number;
+
+            if (targetIndex === undefined) {
+                index = getCurrentWord(lineId, timeInMs);
+            } else {
+                index = targetIndex;
+            }
+
+            if (index === -1) {
+                return;
+            }
+
+            console.log('index');
+
+            // Directly modify the dom instead of using react to prevent rerender
+
+            const currentLyric = document.querySelector(
+                `#lyric-${lineId}-word-${index}`,
+            ) as HTMLElement;
+
+            // console.log(currentLyric, `#lyric-${lineId}-word-${index}`);
+
+            // console.log(document.querySelector(`#lyric-${lineId}`)?.querySelectorAll(`h1`));
+            // document
+            //     .querySelector(`#lyric-${lineId}`)
+            //     ?.querySelectorAll(`h1`)
+            //     .forEach((node) => node.classList.remove('active'));
+
+            currentLyric.classList.add('active');
+            console.log('active');
+
+            // if (followRef.current) {
+            //     doc?.scroll({ behavior: 'smooth', top: offsetTop });
+            // }
+
+            if (
+                lyricInlineRef.current &&
+                index !== lyricInlineRef.current[Number(lineId)].words!.length - 1
+            ) {
+                const nextTime = lyricInlineRef.current![Number(lineId)].words[index].timestamp;
+
+                const elapsed = performance.now() - start;
+
+                console.log('timer');
+                if (lyricInlineTimer.current) {
+                    clearTimeout(lyricInlineTimer.current);
+                }
+                lyricInlineTimer.current = setTimeout(
+                    () => {
+                        setCurrentWord(lineId, nextTime, nextEpoch, index + 1);
+                    },
+                    nextTime - timeInMs - elapsed,
+                );
+            }
+        },
+        [],
+    );
+
+    function parseELRC(lyrics: SynchronizedLyricsArray) {
+        const wordTimestampRegex = /<\d{2}:\d{2}\.\d{2,3}>/gm;
+        const lyricsLines: any[] = [];
+
+        lyrics.forEach((item, index) => {
+            const lineLyric: any[] = [];
+            const wordsTimestamps = item[1].match(wordTimestampRegex) || [];
+            const words = item[1].replaceAll(wordTimestampRegex, '||SPLIT||').split('||SPLIT||');
+
+            lineLyric.push({
+                index: 0,
+                timestamp: item[0],
+                word: words[0],
+            });
+
+            words.forEach((word, index) => {
+                if (
+                    index != 0 &&
+                    wordsTimestamps.length >= index &&
+                    wordsTimestamps[index] != undefined
+                ) {
+                    const ttimestampstr = wordsTimestamps[index].replace('<', '').replace('>', '');
+                    const minutes = Number(ttimestampstr.split(':')[0]);
+                    const seconds = Number(ttimestampstr.split(':')[1]);
+                    const ms = minutes * 60 * 1000 + seconds * 1000;
+
+                    lineLyric.push({
+                        index,
+                        timestamp: ms,
+                        word,
+                    });
+                }
+            });
+
+            lyricsLines.push({
+                index,
+                words: lineLyric,
+            });
+        });
+
+        return lyricsLines;
+    }
+
     useEffect(() => {
         // Copy the follow settings into a ref that can be accessed in the timeout
         followRef.current = settings.follow;
@@ -227,6 +393,7 @@ export const SynchronizedLyrics = ({
         // ALSO remove listeners on close. Use the promisified getCurrentTime(), because
         // we don't want to be dependent on npw, which may not be precise
         lyricRef.current = lyrics;
+        lyricInlineRef.current = parseELRC(lyrics);
 
         if (status === PlayerStatus.PLAYING) {
             let rejected = false;
@@ -253,6 +420,7 @@ export const SynchronizedLyrics = ({
                 // Do NOT do this for other cleanup functions, as it should only be done
                 // when switching to a new song (or an empty one)
                 if (lyricTimer.current) clearTimeout(lyricTimer.current);
+                if (lyricInlineTimer.current) clearTimeout(lyricInlineTimer.current);
             };
         }
 
@@ -271,6 +439,10 @@ export const SynchronizedLyrics = ({
 
         if (lyricTimer.current) {
             clearTimeout(lyricTimer.current);
+        }
+
+        if (lyricInlineTimer.current) {
+            clearTimeout(lyricInlineTimer.current);
         }
 
         let rejected = false;
@@ -304,6 +476,10 @@ export const SynchronizedLyrics = ({
                 clearTimeout(lyricTimer.current);
             }
 
+            if (lyricInlineTimer.current) {
+                clearTimeout(lyricInlineTimer.current);
+            }
+
             return;
         }
 
@@ -319,6 +495,10 @@ export const SynchronizedLyrics = ({
             clearTimeout(lyricTimer.current);
         }
 
+        if (lyricInlineTimer.current) {
+            clearTimeout(lyricInlineTimer.current);
+        }
+
         setCurrentLyric(now * 1000 - delayMsRef.current);
     }, [now, seeked, setCurrentLyric, status]);
 
@@ -327,6 +507,10 @@ export const SynchronizedLyrics = ({
         // the epoch to instruct any dangling timers to stop
         if (lyricTimer.current) {
             clearTimeout(lyricTimer.current);
+        }
+
+        if (lyricInlineTimer.current) {
+            clearTimeout(lyricInlineTimer.current);
         }
 
         timerEpoch.current += 1;
@@ -366,7 +550,21 @@ export const SynchronizedLyrics = ({
                     text={`"${name} by ${artist}"`}
                 />
             )}
-            {lyrics.map(([time, text], idx) => (
+            {parseELRC(lyrics).map((line) => {
+                return (
+                    <div key={line.index}>
+                        <LyricLineByWord
+                            alignment={settings.alignment}
+                            className="lyric-line synchronized"
+                            fontSize={settings.fontSize}
+                            id={`lyric-${line.index}`}
+                            //   onClick={() => handleSeek(time / 1000)}
+                            words={line.words}
+                        />
+                    </div>
+                );
+            })}
+            {/* {lyrics.map(([time, text], idx) => (
                 <div key={idx}>
                     <LyricLine
                         alignment={settings.alignment}
@@ -386,7 +584,7 @@ export const SynchronizedLyrics = ({
                         />
                     )}
                 </div>
-            ))}
+            ))} */}
         </SynchronizedLyricsContainer>
     );
 };
