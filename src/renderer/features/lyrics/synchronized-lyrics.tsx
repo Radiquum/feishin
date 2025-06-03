@@ -96,9 +96,6 @@ export const SynchronizedLyrics = ({
                 mpris?.updateSeek(time);
                 currentPlayerRef?.seekTo(time);
             }
-            document
-                .querySelectorAll('.synchronized-lyrics .active')
-                .forEach((node) => node.classList.remove('active'));
         },
         [currentPlayerRef, handleScrobbleFromSeek, playbackType, setCurrentTime],
     );
@@ -235,6 +232,10 @@ export const SynchronizedLyrics = ({
         (timeInMs: number, epoch?: number, targetIndex?: number) => {
             const start = performance.now();
 
+            document
+                .querySelectorAll('.synchronized-lyrics .active')
+                .forEach((node) => node.classList.remove('active'));
+
             let nextEpoch: number;
             if (epoch === undefined) {
                 timerEpoch.current = (timerEpoch.current + 1) % 10000;
@@ -283,9 +284,6 @@ export const SynchronizedLyrics = ({
                 lyricTimer.current = setTimeout(
                     () => {
                         // Directly modify the dom instead of using react to prevent rerender
-                        document
-                            .querySelectorAll('.synchronized-lyrics .active')
-                            .forEach((node) => node.classList.remove('active'));
                         setCurrentLyric(nextTime, nextEpoch, index + 1);
                     },
                     nextTime - timeInMs - elapsed,
