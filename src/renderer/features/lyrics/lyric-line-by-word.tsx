@@ -1,5 +1,5 @@
 import { TitleProps } from '@mantine/core';
-import { createPolymorphicComponent, Title as MantineHeader } from '@mantine/core';
+import { createPolymorphicComponent } from '@mantine/core';
 import { ComponentPropsWithoutRef, ReactNode } from 'react';
 import styled from 'styled-components';
 
@@ -12,56 +12,6 @@ interface LyricLineProps extends ComponentPropsWithoutRef<'div'> {
     id: string;
     tokens: SynchronizedLyricsKaraokeTokenObject[];
 }
-
-// const StyledText = styled(TextTitle)<TitleProps & { $alignment: string; $fontSize: number }>`
-//     padding: 0 1rem;
-//     font-size: ${(props) => props.$fontSize}px;
-//     font-weight: 600;
-//     color: var(--main-fg);
-//     text-align: ${(props) => props.$alignment};
-//     opacity: 0.5;
-
-//     transition:
-//         opacity 0.3s ease-in-out,
-//         transform 0.3s ease-in-out;
-
-//     &.active {
-//         opacity: 1;
-//     }
-
-//     &.unsynchronized {
-//         opacity: 1;
-//     }
-
-//     &.synchronized {
-//         cursor: pointer;
-//     }
-// `;
-
-// const StyledSpan = styled(TextTitle)<TitleProps & { $alignment: string; $fontSize: number }>`
-//     padding: 0 1rem;
-//     font-size: ${(props) => props.$fontSize}px;
-//     font-weight: 600;
-//     color: var(--main-fg);
-//     text-align: ${(props) => props.$alignment};
-//     opacity: 0.5;
-
-//     transition:
-//         opacity 0.3s ease-in-out,
-//         transform 0.3s ease-in-out;
-
-//     &.active {
-//         opacity: 1;
-//     }
-
-//     &.unsynchronized {
-//         opacity: 1;
-//     }
-
-//     &.synchronized {
-//         cursor: pointer;
-//     }
-// `;
 
 type SpanProps = ComponentPropsWithoutRef<'span'>;
 interface SpanPropsProps extends SpanProps {
@@ -79,7 +29,7 @@ const _Span = ({ children, ...rest }: SpanProps) => {
 };
 
 const Span = createPolymorphicComponent<'span', SpanPropsProps>(_Span);
-const StyledSpan = styled(Span)<TitleProps & { $alignment: string; $fontSize: number }>`
+const StyledSpan = styled(Span)<TitleProps & { $alignment: string }>`
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -88,14 +38,14 @@ const StyledSpan = styled(Span)<TitleProps & { $alignment: string; $fontSize: nu
             ? 'flex-start'
             : (props) => (props.$alignment == 'right' ? 'flex-end' : 'center')};
     padding: 0 1rem;
-    font-size: ${(props) => props.$fontSize}px;
-    font-weight: 600;
 `;
 
-const StyledText = styled(TextTitle)<TitleProps>`
+const StyledText = styled(TextTitle)<TitleProps & { $alignment: string; $fontSize: number }>`
     width: 'fit-content';
+    font-size: ${(props) => props.$fontSize}px;
     font-weight: 600;
     color: var(--main-fg);
+    text-align: ${(props) => props.$alignment};
     opacity: 0.5;
 
     transition:
@@ -126,12 +76,13 @@ export const LyricLineByWord = ({
     return (
         <StyledSpan
             $alignment={alignment}
-            $fontSize={fontSize}
             id={id}
         >
             {tokens.map((token) => {
                 return (
                     <StyledText
+                        $alignment={alignment}
+                        $fontSize={fontSize}
                         id={`${id}-token-${token.index}`}
                         key={`${id}-token-${token.index}`}
                         onClick={() => handleSeek(token.timestamp / 1000)}
